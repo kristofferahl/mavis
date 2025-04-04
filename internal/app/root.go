@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"time"
 
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/log"
 	"github.com/kristofferahl/mavis/internal/pkg/commit"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +27,8 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       fmt.Sprintf("%s (commit=%s)", version.Version, version.Commit),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !opt.Debug {
-			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		if opt.Debug {
+			log.SetLevel(log.DebugLevel)
 		}
 
 		var err error
@@ -41,6 +39,9 @@ var rootCmd = &cobra.Command{
 
 		collect := huh.NewForm(
 			huh.NewGroup(
+				huh.NewNote().
+					Title("\n"+version.Name+" 🐱 "+version.Description+", v."+version.Version),
+
 				huh.NewSelect[string]().
 					Title("what type of commit is it?").
 					Value(&commit.Type).
@@ -62,7 +63,8 @@ var rootCmd = &cobra.Command{
 
 				huh.NewText().
 					Title("describe the change in detail").
-					Value(&commit.OptionalBody),
+					Value(&commit.OptionalBody).
+					WithHeight(3),
 
 				huh.NewConfirm().
 					Title("is it a breaking change?").
@@ -97,7 +99,7 @@ var rootCmd = &cobra.Command{
 				args = append(args, "-m", commit.Body())
 			}
 
-			log.Info().Msgf("git %v", args)
+			log.Debug("git", "args", args)
 
 			cmd := exec.CommandContext(cmd.Context(), "git", args...)
 			cmd.Stdin = os.Stdin
@@ -118,12 +120,6 @@ func Execute() {
 	rootCmd.SetErr(os.Stderr)
 	rootCmd.SetIn(os.Stdin)
 	rootCmd.SetErrPrefix("error: ")
-
-	log.Logger = log.Output(zerolog.ConsoleWriter{
-		Out:        os.Stderr,
-		TimeFormat: time.RFC3339,
-		NoColor:    true,
-	})
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
