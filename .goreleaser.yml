@@ -1,0 +1,58 @@
+# Visit https://goreleaser.com for documentation on how to customize this
+# behavior.
+version: 2
+before:
+  hooks:
+    - go mod download
+    - go mod tidy
+builds:
+  - id: mavis-darwin
+    ldflags:
+      - -s -w -X github.com/kristofferahl/mavis/internal/pkg/version.Version={{.Version}} -X github.com/kristofferahl/mavis/internal/pkg/version.Commit={{.Commit}}
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+  - id: mavis-linux
+    ldflags:
+      - -s -w -X github.com/kristofferahl/mavis/internal/pkg/version.Version={{.Version}} -X github.com/kristofferahl/mavis/internal/pkg/version.Commit={{.Commit}}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+archives:
+  - id: mavis-archive
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format_overrides:
+      - goos: darwin
+        formats: [ 'zip' ]
+    files:
+      - README.md
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: "{{ .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+brews:
+  - name: mavis
+    repository:
+      owner: kristofferahl
+      name: homebrew-tap
+    commit_author:
+      name: "Kristoffer Ahl"
+    homepage: https://github.com/kristofferahl/mavis
+    description: unconventional commit
+    license: Apache License 2.0
+    install: |
+      bin.install 'mavis'
+      output = Utils.safe_popen_read("#{bin}/mavis", 'completion', 'bash')
+      (bash_completion/'mavis').write output
+      output = Utils.safe_popen_read("#{bin}/mavis", 'completion', 'zsh')
+      (zsh_completion/'_mavis').write output
