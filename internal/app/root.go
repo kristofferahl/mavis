@@ -43,7 +43,7 @@ var rootCmd = &cobra.Command{
 					Title("\n"+version.Name+" 🐱 "+version.Description+", v."+version.Version),
 
 				huh.NewSelect[string]().
-					Title("what type of commit is it?").
+					Title("type of commit").
 					Value(&commit.Type).
 					Options(
 						huh.NewOption("feat", "feat").Selected(true),
@@ -52,13 +52,13 @@ var rootCmd = &cobra.Command{
 					),
 
 				huh.NewInput().
-					Title("what is the scope of the commit?").
+					Title("scope for the commit").
 					// A scope MUST consist of a noun describing a section of the codebase
 					Description("noun describing a section of the codebase, e.g. (api, ui, etc.)").
 					Value(&commit.Scope),
 
 				huh.NewInput().
-					Title("summarize the change").
+					Title("summary of the change").
 					Value(&commit.Description),
 
 				huh.NewText().
