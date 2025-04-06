@@ -56,7 +56,8 @@ func NewCommitUI(config config.Config) tea.Model {
 
 		huh.NewInput().
 			Title("scope for the commit").
-			Description("noun describing a section of the codebase, e.g. (api, ui, etc.)").
+			Description("noun describing a section of the codebase").
+			Placeholder("e.g. api, ui, app etc.").
 			Value(&commit.Scope),
 
 		huh.NewInput().
@@ -70,19 +71,20 @@ func NewCommitUI(config config.Config) tea.Model {
 				return nil
 			}),
 
-		huh.NewText().
-			Title("describe the change in detail (optional)").
-			Description("e.g. what is the motivation for this change? why was it necessary?").
-			Value(&commit.OptionalBody).
-			ShowLineNumbers(true).
-			Lines(3).
-			WithHeight(5),
-
 		// .WithButtonAlignment(lipgloss.Left)
 		// https://github.com/charmbracelet/huh/pull/427
 		huh.NewConfirm().
 			Title("is it a breaking change?").
+			Description("if yes, describe the breaking change").
 			Value(&commit.Breaking),
+
+		huh.NewText().
+			Title("describe the change in detail (optional)").
+			Description("what is the motivation for this change").
+			Value(&commit.OptionalBody).
+			ShowLineNumbers(true).
+			Lines(3).
+			WithHeight(5),
 
 		// .WithButtonAlignment(lipgloss.Left)
 		// https://github.com/charmbracelet/huh/pull/427
@@ -218,7 +220,7 @@ func (m CommitUI) View() string {
 		previewCol := col.
 			Padding(0, s.Padding+1)
 
-		input := inputCol.Render(s.Base.Render(form.WithWidth(width).View()))
+		input := inputCol.Render(form.WithWidth(width).View())
 		preview := previewCol.Render(m.Commit.String())
 
 		row := lipgloss.JoinHorizontal(lipgloss.Top, input, preview)
