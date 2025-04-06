@@ -2,6 +2,8 @@
 
 unconventional commit
 
+<img alt="mavis - unconventional commit" src="demo.gif" width="800" />
+
 ## Install
 
 ### Homebrew tap
