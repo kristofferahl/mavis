@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
+	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/ui"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
 	"github.com/spf13/cobra"
@@ -31,7 +32,10 @@ var rootCmd = &cobra.Command{
 			log.SetLevel(log.DebugLevel)
 		}
 
-		p := tea.NewProgram(ui.NewCommitUI())
+		c := config.New()
+		c.Theme = os.Getenv("MAVIS_THEME")
+
+		p := tea.NewProgram(ui.NewCommitUI(c))
 		model, err := p.Run()
 		if err != nil {
 			return err

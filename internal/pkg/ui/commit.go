@@ -8,11 +8,26 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kristofferahl/mavis/internal/pkg/commit"
+	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
 )
 
-func NewCommitUI() tea.Model {
-	theme := huh.ThemeCharm()
+func NewCommitUI(config config.Config) tea.Model {
+	var theme *huh.Theme
+	switch config.Theme {
+	case "base":
+		theme = huh.ThemeBase()
+	case "base16":
+		theme = huh.ThemeBase16()
+	case "catppuccin":
+		theme = huh.ThemeCatppuccin()
+	case "dracula":
+		theme = huh.ThemeDracula()
+	case "charm":
+		theme = huh.ThemeCharm()
+	default:
+		theme = huh.ThemeCharm()
+	}
 	theme.Focused.Card = theme.Focused.Card.PaddingLeft(2)
 	theme.Focused.Base = theme.Focused.Base.PaddingLeft(2).BorderStyle(lipgloss.HiddenBorder())
 
@@ -41,7 +56,6 @@ func NewCommitUI() tea.Model {
 
 		huh.NewInput().
 			Title("scope for the commit").
-			// A scope MUST consist of a noun describing a section of the codebase
 			Description("noun describing a section of the codebase, e.g. (api, ui, etc.)").
 			Value(&commit.Scope),
 
