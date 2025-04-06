@@ -19,6 +19,10 @@ build-all:
 
 prerelease: build-all
 	@test $${VER?Environment variable VER is required}
+	@ if [ ! -z "$$(git status --porcelain)" ]; then \
+			echo "working directory is in a dirty state, commit and try again"; \
+			exit 1; \
+	fi
 	git pull origin main --tag
 	git tag
 	git tag ${VER}
