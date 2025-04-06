@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/charmbracelet/huh"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
-	"github.com/kristofferahl/mavis/internal/pkg/commit"
+	"github.com/kristofferahl/mavis/internal/pkg/ui"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -31,68 +31,19 @@ var rootCmd = &cobra.Command{
 			log.SetLevel(log.DebugLevel)
 		}
 
-		var err error
-		var ok bool
-		var commit commit.Commit
-
-		ok = true
-
-		collect := huh.NewForm(
-			huh.NewGroup(
-				huh.NewNote().
-					Title("\n"+version.Name+" 🐱 "+version.Description+", v."+version.Version),
-
-				huh.NewSelect[string]().
-					Title("type of commit").
-					Value(&commit.Type).
-					Options(
-						huh.NewOption("feat", "feat").Selected(true),
-						huh.NewOption("fix", "fix"),
-						huh.NewOption("chore", "chore"),
-					),
-
-				huh.NewInput().
-					Title("scope for the commit").
-					// A scope MUST consist of a noun describing a section of the codebase
-					Description("noun describing a section of the codebase, e.g. (api, ui, etc.)").
-					Value(&commit.Scope),
-
-				huh.NewInput().
-					Title("summary of the change").
-					Value(&commit.Description),
-
-				huh.NewText().
-					Title("describe the change in detail").
-					Value(&commit.OptionalBody).
-					WithHeight(3),
-
-				huh.NewConfirm().
-					Title("is it a breaking change?").
-					Value(&commit.Breaking),
-			),
-		).WithTheme(huh.ThemeCharm()).WithShowHelp(true)
-
-		err = collect.Run()
+		p := tea.NewProgram(ui.NewCommitUI())
+		model, err := p.Run()
 		if err != nil {
 			return err
 		}
-
-		approve := huh.NewForm(
-			huh.NewGroup(
-				huh.NewConfirm().
-					Title("commit changes?").
-					Description(commit.String()).
-					Value(&ok),
-			),
-		).WithTheme(huh.ThemeCharm()).WithShowHelp(true)
-
-		err = approve.Run()
-		if err != nil {
-			return err
+		commitUI, ok := model.(ui.CommitUI)
+		if !ok {
+			return fmt.Errorf("failed to cast model to CommitUI")
 		}
 
-		if ok {
-			fmt.Println(commit.String())
+		if *commitUI.Confirm {
+			commit := commitUI.Commit
+			log.Debug("commit", "string", commit.String())
 
 			args := []string{"commit", "-m", commit.Summary()}
 			if commit.HasBody() {
