@@ -17,6 +17,11 @@ build-all:
 	mkdir -p ./dist/
 	goreleaser build --snapshot --clean
 
+demo:
+	vhs demo.tape
+	git add demo.gif
+	git commit --amend demo.gif --no-edit
+
 prerelease: build-all
 	@test $${VER?Environment variable VER is required}
 	@ if [ ! -z "$$(git status --porcelain)" ]; then \
