@@ -31,7 +31,7 @@ func NewCommitUI(config config.Config) tea.Model {
 	theme.Focused.Card = theme.Focused.Card.PaddingLeft(2)
 	theme.Focused.Base = theme.Focused.Base.PaddingLeft(2).BorderStyle(lipgloss.HiddenBorder())
 
-	style := CommitUIStyle{
+	style := commitUIStyle{
 		Normal:    theme.Focused.Base.GetForeground(),
 		Subtle:    theme.Focused.Description.GetForeground(),
 		Highlight: theme.Focused.Title.GetForeground(),
@@ -41,61 +41,112 @@ func NewCommitUI(config config.Config) tea.Model {
 	style.Base = theme.Focused.Base.Padding(0).Margin(0).Border(lipgloss.HiddenBorder(), false)
 	style.Border = lipgloss.NormalBorder()
 
-	commit := &commit.Commit{}
+	commit := commit.NewRenderer(config.Template)
 	okay := true
 
-	inputs := []huh.Field{
-		huh.NewSelect[string]().
-			Title("type of commit").
-			Value(&commit.Type).
-			Options(
-				huh.NewOption("feat", "feat").Selected(true),
-				huh.NewOption("fix", "fix"),
-				huh.NewOption("chore", "chore"),
-			),
+	// Fields
+	fields := make([]huh.Field, 0)
+	for _, f := range config.Fields {
+		switch f.Type {
+		case "input":
+			v := ""
+			if f.Default != nil {
+				v = fmt.Sprintf("%v", f.Default)
+			}
+			i := huh.NewInput().
+				Title(f.Title).
+				Description(f.Description).
+				Placeholder(f.Placeholder).
+				Value(&v).
+				Validate(func(s string) error {
+					if f.Required && len(s) < 1 {
+						return fmt.Errorf("must not be empty")
+					}
+					return nil
+				})
 
-		huh.NewInput().
-			Title("scope for the commit").
-			Description("noun describing a section of the codebase").
-			Placeholder("e.g. api, ui, app etc.").
-			Value(&commit.Scope),
+			f.SetRef(i)
+			fields = append(fields, i)
 
-		huh.NewInput().
-			Title("summary of the change").
-			Description("a short description of the change").
-			Value(&commit.Description).
-			Validate(func(s string) error {
-				if len(s) < 3 {
-					return fmt.Errorf("must be at least 3 characters")
+		case "text":
+			v := ""
+			if f.Default != nil {
+				v = fmt.Sprintf("%v", f.Default)
+			}
+			i := huh.NewText().
+				Title(f.Title).
+				Description(f.Description).
+				Placeholder(f.Placeholder).
+				Value(&v).
+				Validate(func(s string) error {
+					if f.Required && len(s) < 1 {
+						return fmt.Errorf("must not be empty")
+					}
+					return nil
+				}).
+				ShowLineNumbers(true).
+				Lines(3).
+				WithHeight(5)
+
+			f.SetRef(i)
+			fields = append(fields, i)
+
+		case "select":
+			v := ""
+			if f.Default != nil {
+				v = fmt.Sprintf("%v", f.Default)
+			}
+			opts := make([]huh.Option[string], 0)
+			for _, opt := range f.Options {
+				key := opt.Key
+				if len(opt.Key) == 0 {
+					key = opt.Value
 				}
-				return nil
-			}),
+				o := huh.NewOption(key, opt.Value)
+				if opt.Value == v {
+					o.Selected(true)
+				}
+				opts = append(opts, o)
+			}
+			i := huh.NewSelect[string]().
+				Title(f.Title).
+				Description(f.Description).
+				Options(opts...).
+				Value(&v).
+				Validate(func(s string) error {
+					if f.Required && len(s) < 1 {
+						return fmt.Errorf("must not be empty")
+					}
+					return nil
+				})
 
-		// .WithButtonAlignment(lipgloss.Left)
-		// https://github.com/charmbracelet/huh/pull/427
-		huh.NewConfirm().
-			Title("is it a breaking change?").
-			Description("if yes, describe the breaking change").
-			Value(&commit.Breaking),
+			f.SetRef(i)
+			fields = append(fields, i)
 
-		huh.NewText().
-			Title("describe the change in detail (optional)").
-			Description("what is the motivation for this change").
-			Value(&commit.OptionalBody).
-			ShowLineNumbers(true).
-			Lines(3).
-			WithHeight(5),
+		case "confirm":
+			v := false
+			if f.Default != nil {
+				v = f.Default.(bool)
+			}
+			i := huh.NewConfirm().
+				Title(f.Title).
+				Description(f.Description).
+				Value(&v)
 
-		// .WithButtonAlignment(lipgloss.Left)
-		// https://github.com/charmbracelet/huh/pull/427
-		huh.NewConfirm().
-			Title("commit changes?").
-			Value(&okay),
+			f.SetRef(i)
+			fields = append(fields, i)
+		}
 	}
 
-	groups := make([]*huh.Group, len(inputs))
+	// .WithButtonAlignment(lipgloss.Left)
+	// https://github.com/charmbracelet/huh/pull/427
+	fields = append(fields, huh.NewConfirm().
+		Title("commit changes?").
+		Value(&okay))
 
-	for i, input := range inputs {
+	groups := make([]*huh.Group, len(fields))
+
+	for i, input := range fields {
 		input.Focus()
 		groups[i] = huh.NewGroup(input)
 	}
@@ -108,24 +159,24 @@ func NewCommitUI(config config.Config) tea.Model {
 			WithShowHelp(true),
 		Confirm: &okay,
 
-		width: 0,
-		style: style,
-		index: 0,
+		config: config,
+		style:  style,
 	}
 }
 
 type CommitUI struct {
-	Commit  *commit.Commit
+	Commit  *commit.Renderer
 	Confirm *bool
+
+	config config.Config
+	style  commitUIStyle
 
 	quitting bool
 	width    int
-	style    CommitUIStyle
 	form     *huh.Form
-	index    int
 }
 
-type CommitUIStyle struct {
+type commitUIStyle struct {
 	Normal    lipgloss.TerminalColor
 	Subtle    lipgloss.TerminalColor
 	Highlight lipgloss.TerminalColor
@@ -196,14 +247,23 @@ func (m CommitUI) View() string {
 	{
 		var (
 			titleStyle = s.Base.
-				Width(m.width - s.Doc.GetPaddingLeft() - s.Doc.GetPaddingRight()).
-				Foreground(s.Highlight).
-				BorderStyle(s.Border).
-				BorderBottom(true).
-				BorderForeground(s.Subtle)
+					Width(m.width - s.Doc.GetPaddingLeft() - s.Doc.GetPaddingRight()).
+					Foreground(s.Highlight).
+					BorderStyle(s.Border).
+					BorderBottom(true).
+					BorderForeground(s.Subtle)
+			chipStyle = s.Base.
+					Foreground(lipgloss.Color("#FFF")).
+					Background(s.Highlight).
+					Padding(0, 1).
+					MarginRight(1)
 		)
 		title := titleStyle.Render(version.Name + " 🐱 " + version.Description + ", v." + version.Version)
-		doc.WriteString(title + "\n")
+		chip := ""
+		if m.config.Chip != "" {
+			chip = chipStyle.Render(m.config.Chip)
+		}
+		doc.WriteString(chip + title + "\n")
 	}
 
 	// Input & Preview
@@ -211,7 +271,11 @@ func (m CommitUI) View() string {
 		var (
 			width = (fullWidth / 2)
 			col   = lipgloss.NewStyle().Width(width)
+			data  = make([]commit.TemplateValue, 0)
 		)
+		for _, field := range m.config.Fields {
+			data = append(data, field.TemplateValues()...)
+		}
 		inputCol := col.
 			Padding(0).
 			BorderStyle(s.Border).
@@ -221,7 +285,7 @@ func (m CommitUI) View() string {
 			Padding(0, s.Padding+1)
 
 		input := inputCol.Render(form.WithWidth(width).View())
-		preview := previewCol.Render(m.Commit.String())
+		preview := previewCol.Render(m.Commit.Render(data))
 
 		row := lipgloss.JoinHorizontal(lipgloss.Top, input, preview)
 		doc.WriteString(row + "\n")

@@ -34,6 +34,101 @@ var rootCmd = &cobra.Command{
 
 		c := config.New()
 		c.Theme = os.Getenv("MAVIS_THEME")
+		c.Chip = os.Getenv("MAVIS_CHIP")
+
+		c.Template = `
+{{type}}{{scope}}{{breaking_glyph}}: {{description}}
+
+{{breaking_body}}{{body}}`
+
+		c.Fields = append(c.Fields, &config.Field{
+			Type:    "select",
+			Title:   "type of commit",
+			Default: "feat",
+			Formatting: []config.FormattingRule{
+				{
+					Key:    "type",
+					Format: "{{value}}",
+				},
+			},
+			Options: []config.SelectOption{
+				{
+					Key:   "feat",
+					Value: "feat",
+				},
+				{
+					Key:   "fix",
+					Value: "fix",
+				},
+				{
+					Key:   "chore",
+					Value: "chore",
+				},
+			},
+		})
+		c.Fields = append(c.Fields, &config.Field{
+			Type:        "input",
+			Title:       "scope of the commit",
+			Description: "noun describing a section of the codebase",
+			Placeholder: "e.g. api, ui, app etc.",
+			Formatting: []config.FormattingRule{
+				{
+					Key:    "scope",
+					Format: "({{value}})",
+				},
+			},
+		})
+		c.Fields = append(c.Fields, &config.Field{
+			Type:        "input",
+			Title:       "summary of the change",
+			Description: "a short description of the change",
+			Placeholder: "e.g. add config file",
+			Required:    true,
+			Formatting: []config.FormattingRule{
+				{
+					Key:    "description",
+					Format: "{{value}}",
+				},
+			},
+		})
+		c.Fields = append(c.Fields, &config.Field{
+			Type:        "confirm",
+			Title:       "breaking change?",
+			Description: "if yes, describe the breaking change in detail",
+			Formatting: []config.FormattingRule{
+				{
+					Key:    "breaking_glyph",
+					Format: "!",
+					When:   "true",
+				},
+				{
+					Key:    "breaking_glyph",
+					Format: "",
+					When:   "false",
+				},
+				{
+					Key:    "breaking_body",
+					Format: "BREAKING CHANGE: ",
+					When:   "true",
+				},
+				{
+					Key:    "breaking_body",
+					Format: "",
+					When:   "false",
+				},
+			},
+		})
+		c.Fields = append(c.Fields, &config.Field{
+			Type:        "text",
+			Title:       "describe the change in detail (optional)",
+			Description: "what is the motivation for this change",
+			Formatting: []config.FormattingRule{
+				{
+					Key:    "body",
+					Format: "{{value}}",
+				},
+			},
+		})
 
 		p := tea.NewProgram(ui.NewCommitUI(c))
 		model, err := p.Run()
@@ -47,13 +142,9 @@ var rootCmd = &cobra.Command{
 
 		if *commitUI.Confirm {
 			commit := commitUI.Commit
-			log.Debug("commit", "string", commit.String())
+			log.Debug("commit", "string", commit.String(), "lines", commit.Linebreaks())
 
-			args := []string{"commit", "-m", commit.Summary()}
-			if commit.HasBody() {
-				args = append(args, "-m", commit.Body())
-			}
-
+			args := []string{"commit", "-m", commit.String()}
 			log.Debug("git", "args", args)
 
 			cmd := exec.CommandContext(cmd.Context(), "git", args...)
