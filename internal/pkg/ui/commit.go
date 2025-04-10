@@ -42,7 +42,7 @@ func NewCommitUI(config config.Config) tea.Model {
 	style.Border = lipgloss.NormalBorder()
 
 	commit := &commit.Commit{}
-	okay := false
+	okay := true
 
 	inputs := []huh.Field{
 		huh.NewSelect[string]().
