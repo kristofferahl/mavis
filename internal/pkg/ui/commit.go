@@ -260,7 +260,7 @@ func (m CommitUI) View() string {
 					Padding(0, 1).
 					MarginRight(1)
 		)
-		title := titleStyle.Render(version.Name + " 🐱 " + version.Description + ", v." + version.Version)
+		title := titleStyle.Render(version.Name + " 🐱 " + version.Description + ", v" + version.Version)
 		chip := ""
 		if m.config.Chip != "" {
 			chip = chipStyle.Render(m.config.Chip)

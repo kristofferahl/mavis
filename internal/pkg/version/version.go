@@ -7,7 +7,7 @@ const (
 )
 
 // Version for this cli
-var Version = "dev"
+var Version = "0.0.0-dev"
 
 // Commit for this cli
 var Commit = "unknown"
