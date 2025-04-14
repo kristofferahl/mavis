@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +11,8 @@ import (
 )
 
 type Config struct {
-	path string
+	path      string
+	processed []string
 
 	Include []Include `yaml:"include,omitempty" json:"include,omitempty"`
 
@@ -23,7 +25,8 @@ type Config struct {
 
 func New(path string) *Config {
 	c := Config{
-		path: path,
+		path:      path,
+		processed: make([]string, 0),
 
 		Theme: "charm",
 		Chip:  "",
@@ -136,10 +139,14 @@ func (c *Config) Exists() bool {
 }
 
 func (c *Config) Read() error {
-	return c.read(c.path)
+	err := c.read(c.path)
+	log.Debug("configuration parsed", "files", c.processed, "error", err != nil)
+	return err
 }
 
 func (c *Config) read(path string) error {
+	root := c.path == path
+	log.Debug("reading config", "file", path, "root", root)
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read config file, %w", err)
@@ -154,29 +161,34 @@ func (c *Config) read(path string) error {
 	}
 
 	if c.path == path {
-		log.Debug("allowing includes from root config")
+		log.Debug("applying includes from root config")
 		for _, i := range c.Include {
 			if i.Match(pwd) {
-				log.Debug("including config", "condition", i.When, "path", i.Path)
+				log.Debug("conditon match, including", "condition", i.When, "path", i.Path)
 				includePath, err := resolvePath(i.Path)
 				if err != nil {
 					return fmt.Errorf("failed to resolve include path, %w", err)
 				}
 				if err := c.read(includePath); err != nil {
-					return fmt.Errorf("include failed, %w", err)
+					return err
 				}
 			} else {
-				log.Debug("skipping include", "condition", i.When, "path", i.Path)
+				log.Debug("condition mismatch, skipping", "condition", i.When, "path", i.Path)
 			}
 		}
-	} else {
-		log.Debug("skipping includes, only allowed from root config", "path", path)
 	}
 
+	// validate
+	if err := c.Validate(); err != nil {
+		return err
+	}
+
+	c.processed = append(c.processed, path)
 	return nil
 }
 
 func (c *Config) Write() error {
+	log.Debug("writing config", "file", c.path)
 	s, err := yaml.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config, %w", err)
@@ -187,6 +199,22 @@ func (c *Config) Write() error {
 	}
 	if err := os.WriteFile(c.path, s, 0644); err != nil {
 		return fmt.Errorf("failed to write config file, %w", err)
+	}
+	return nil
+}
+
+func (c *Config) Validate() error {
+	errs := make([]error, 0)
+
+	if c.Template == "" {
+		errs = append(errs, fmt.Errorf("template is required"))
+	}
+	if len(c.Fields) < 1 {
+		errs = append(errs, fmt.Errorf("at least one field is required"))
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("invalid config, %w", errors.Join(errs...))
 	}
 	return nil
 }

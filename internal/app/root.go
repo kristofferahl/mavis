@@ -29,6 +29,8 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       fmt.Sprintf("%s (commit=%s)", version.Version, version.Commit),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		log.SetReportTimestamp(false)
+		log.SetPrefix(version.Name)
 		if opt.Debug {
 			log.SetLevel(log.DebugLevel)
 		}
@@ -38,18 +40,17 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config path, %w", err)
 		}
 
-		// create config, store app config path
+		// create config, set the root config path
 		c := config.New(configFile)
 
-		// automatically create app config file if it doesn't exist
+		// automatically create config file if it doesn't exist
 		if !c.Exists() {
 			if err := c.Write(); err != nil {
 				return err
 			}
 		}
 
-		// read app config file
-		log.Debug("config", "file", configFile)
+		// read config file
 		if err := c.Read(); err != nil {
 			return err
 		}
