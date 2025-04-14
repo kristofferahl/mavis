@@ -5,11 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/log"
 	yaml "gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	path string
+
+	Include []Include `yaml:"include,omitempty" json:"include,omitempty"`
 
 	Theme    string `yaml:"theme" json:"theme"`
 	Chip     string `yaml:"chip,omitempty" json:"chip,omitempty"`
@@ -132,7 +135,11 @@ func (c *Config) Exists() bool {
 	return true
 }
 
-func (c *Config) Read(path string) error {
+func (c *Config) Read() error {
+	return c.read(c.path)
+}
+
+func (c *Config) read(path string) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read config file, %w", err)
@@ -140,19 +147,45 @@ func (c *Config) Read(path string) error {
 	if err := yaml.Unmarshal(b, c); err != nil {
 		return fmt.Errorf("failed to unmarshal config, %w", err)
 	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory, %w", err)
+	}
+
+	if c.path == path {
+		log.Debug("allowing includes from root config")
+		for _, i := range c.Include {
+			if i.Match(pwd) {
+				log.Debug("including config", "condition", i.When, "path", i.Path)
+				includePath, err := resolvePath(i.Path)
+				if err != nil {
+					return fmt.Errorf("failed to resolve include path, %w", err)
+				}
+				if err := c.read(includePath); err != nil {
+					return fmt.Errorf("include failed, %w", err)
+				}
+			} else {
+				log.Debug("skipping include", "condition", i.When, "path", i.Path)
+			}
+		}
+	} else {
+		log.Debug("skipping includes, only allowed from root config", "path", path)
+	}
+
 	return nil
 }
 
-func (c *Config) Write(path string) error {
+func (c *Config) Write() error {
 	s, err := yaml.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config, %w", err)
 	}
-	dir := filepath.Dir(path)
+	dir := filepath.Dir(c.path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create config dir, %w", err)
 	}
-	if err := os.WriteFile(path, s, 0644); err != nil {
+	if err := os.WriteFile(c.path, s, 0644); err != nil {
 		return fmt.Errorf("failed to write config file, %w", err)
 	}
 	return nil

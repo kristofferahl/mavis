@@ -43,14 +43,14 @@ var rootCmd = &cobra.Command{
 
 		// automatically create app config file if it doesn't exist
 		if !c.Exists() {
-			if err := c.Write(configFile); err != nil {
+			if err := c.Write(); err != nil {
 				return err
 			}
 		}
 
 		// read app config file
 		log.Debug("config", "file", configFile)
-		if err := c.Read(configFile); err != nil {
+		if err := c.Read(); err != nil {
 			return err
 		}
 
