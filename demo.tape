@@ -92,7 +92,7 @@ Enter
 
 Sleep 1s
 
-Type "add a demo tape"
+Type "update demo tape"
 Sleep 1s
 Enter
 
@@ -108,7 +108,7 @@ Enter
 Sleep 2s
 
 # This is where we could add a commit body
-Type "made a demo tape using vhs"
+Type "made a new demo tape using vhs"
 Ctrl+j
 Ctrl+j
 Type "url: https://github.com/charmbracelet/vhs"
@@ -118,6 +118,8 @@ Enter
 Sleep 2s
 
 # This is where we decide to commit or not
+Right
+Sleep 1s
 Left
 Sleep 2s
 Enter
