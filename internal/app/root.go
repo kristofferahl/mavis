@@ -55,6 +55,18 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		// env overrides
+		theme := os.Getenv("MAVIS_THEME")
+		if len(theme) > 0 {
+			log.Debug("overriding theme from env", "theme", theme)
+			c.Theme = theme
+		}
+		chip := os.Getenv("MAVIS_CHIP")
+		if len(chip) > 0 {
+			log.Debug("overriding chip from env", "chip", chip)
+			c.Chip = chip
+		}
+
 		p := tea.NewProgram(ui.NewCommitUI(*c))
 		model, err := p.Run()
 		if err != nil {
