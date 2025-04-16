@@ -65,6 +65,9 @@ Set FontSize 16
 Set Width 1200
 Set Height 600
 
+Env MAVIS_THEME charm
+Env MAVIS_CHIP demo
+
 Hide
 Type "git add demo.tape && clear" Enter
 Show
