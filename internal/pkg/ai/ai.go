@@ -39,15 +39,16 @@ func (c *Client) GenerateFieldDefaults(ctx context.Context, config *config.Confi
 		return fmt.Errorf("failed to marshal fields to JSON: %w", err)
 	}
 
+	customPrompt := os.Getenv("MAVIS_AI_PROMPT")
 	prompt := fmt.Sprintf(`Generate default values for the following fields based on the git diff.
 Respond with a JSON object where each key is the field Title and the value is the suggested default value.
-The response must be a valid JSON object and contain no wrapping characters.
+The response must be a valid JSON object and contain no wrapping characters. %s
 
 Fields (json):
 %s
 
 Git diff:
-%s`, string(fields), gitDiff)
+%s`, customPrompt, string(fields), gitDiff)
 
 	log.Debug("generating commit defaults", "prompt", prompt)
 
