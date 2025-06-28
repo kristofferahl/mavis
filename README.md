@@ -92,7 +92,9 @@ ai:
 #### How It Works
 
 - Analyzes your staged git changes (diff)
+- Considers the current branch name for better context
 - Uses GPT-4 Mini for cost-effective, accurate suggestions
 - Generates default values for all configured commit message fields
 - Respects your existing field configuration and templates
 - Works with any custom fields you've defined in your config
+- Designed to support multiple AI providers (currently supports OpenAI)
