@@ -69,24 +69,42 @@ var rootCmd = &cobra.Command{
 			c.Chip = chip
 		}
 
-		if !c.UseAI {
-			c.UseAI = opt.UseAI
+		if !c.AI.Enabled {
+			c.AI.Enabled = opt.UseAI
 		}
 
-		if c.UseAI {
-			log.Debug("AI mode enabled")
-			done := ui.Spin("AI mode enabled, generating commit message...")
+		if c.AI.Enabled {
+			log.Debug("AI mode enabled", "provider", c.AI.Provider)
+			done := ui.Spin(fmt.Sprintf("AI mode enabled, generating commit message using %s...", c.AI.Provider))
 			gitDiff, err := exec.CommandContext(cmd.Context(), "git", "diff", "--cached").Output()
 			if err != nil {
 				done(fmt.Errorf("failed to get git diff, %w", err))
 				return nil
 			}
-			err = ai.NewClient().GenerateFieldDefaults(cmd.Context(), c, string(gitDiff))
+			client, err := ai.NewClient(c.AI)
+			if err != nil {
+				done(fmt.Errorf("failed to create AI client, %w", err))
+				return nil
+			}
+			prompt, err := ai.GeneratePrompt(c, string(gitDiff))
+			if err != nil {
+				done(fmt.Errorf("failed to generate prompt, %w", err))
+				return nil
+			}
+			defaults, err := client.GenerateFieldDefaults(cmd.Context(), prompt)
 			if err != nil {
 				done(fmt.Errorf("failed to generate defaults, %w", err))
 				return nil
 			}
 			done(nil)
+
+			for _, f := range c.Fields {
+				key := f.Title
+				if defaultValue, ok := defaults[key]; ok {
+					log.Debug("setting default value for field", "field", key, "value", defaultValue)
+					f.Default = defaultValue
+				}
+			}
 		}
 
 		p := tea.NewProgram(ui.NewCommitUI(*c))

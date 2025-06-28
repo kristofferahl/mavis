@@ -10,6 +10,19 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+type OpenAIConfig struct {
+	Model               string  `yaml:"model,omitempty" json:"model,omitempty"`
+	MaxCompletionTokens int     `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
+	Temperature         float64 `yaml:"temperature,omitempty" json:"temperature,omitempty"`
+}
+
+type AIConfig struct {
+	Enabled      bool         `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	Provider     string       `yaml:"provider,omitempty" json:"provider,omitempty"`
+	CustomPrompt string       `yaml:"custom_prompt,omitempty" json:"custom_prompt,omitempty"`
+	OpenAI       OpenAIConfig `yaml:"openai,omitempty" json:"openai,omitempty"`
+}
+
 type Config struct {
 	path      string
 	processed []string
@@ -22,7 +35,7 @@ type Config struct {
 
 	Fields []*Field `yaml:"fields" json:"fields"`
 
-	UseAI bool `yaml:"ai,omitempty" json:"ai,omitempty"`
+	AI AIConfig `yaml:"ai,omitempty" json:"ai,omitempty"`
 }
 
 func New(path string) *Config {
@@ -39,6 +52,17 @@ func New(path string) *Config {
 {{breaking_body}}{{body}}`,
 
 		Fields: make([]*Field, 0),
+
+		AI: AIConfig{
+			Enabled:      false,
+			Provider:     "openai",
+			CustomPrompt: "",
+			OpenAI: OpenAIConfig{
+				Model:               "gpt-4.1-mini",
+				MaxCompletionTokens: 500,
+				Temperature:         0.2,
+			},
+		},
 	}
 
 	c.Fields = append(c.Fields, &Field{
