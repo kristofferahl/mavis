@@ -142,5 +142,5 @@ func appConfigPath() (string, error) {
 
 func init() {
 	rootCmd.Flags().BoolVarP(&opt.Debug, "debug", "d", false, "run in debug mode")
-	rootCmd.Flags().BoolVarP(&opt.UseAI, "ai", "", false, "use AI to generate commit message")
+	rootCmd.Flags().BoolVarP(&opt.UseAI, "ai", "", false, "use AI to generate commit suggestions")
 }
