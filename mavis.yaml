@@ -2,5 +2,6 @@ chip: mavis-dev-config
 theme: dracula
 ai:
   custom_prompt: |
-    Focus on business impact and use imperative mood.
+    Focus on business impact and use imperative mood!
     Smaller changes must not set "describe the change in detail"!
+    Try to be smart about identifying breaking changes!
