@@ -3,3 +3,4 @@ theme: dracula
 ai:
   custom_prompt: |
     Focus on business impact and use imperative mood.
+    Smaller changes must not set "describe the change in detail"!
