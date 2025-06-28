@@ -3,8 +3,8 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
+	"github.com/charmbracelet/log"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 )
 
@@ -19,21 +19,21 @@ func GeneratePrompt(config *config.Config, gitDiff string) (string, error) {
 		return "", fmt.Errorf("failed to marshal fields to JSON: %w", err)
 	}
 
-	// Use config custom prompt with fallback to env var for backward compatibility
-	customPrompt := config.AI.CustomPrompt
-	if customPrompt == "" {
-		customPrompt = os.Getenv("MAVIS_AI_PROMPT")
-	}
-
-	prompt := fmt.Sprintf(`Generate default values for the following fields based on the git diff.
+	prompt := fmt.Sprintf(`
+# Commit defaults generation prompt
+Generate default values for fields based on the git diff.
 Respond with a JSON object where each key is the field Title and the value is the suggested default value.
-The response must be a valid JSON object and contain no wrapping characters. %s
-
-Fields (json):
+The response must be a valid JSON object and contain no wrapping characters.
 %s
 
-Git diff:
-%s`, customPrompt, string(fields), gitDiff)
+## Fields (json):
+%s
 
+## Git diff:
+`, config.AI.CustomPrompt, string(fields))
+
+	log.Debug("generated base prompt", "prompt", prompt)
+
+	prompt += gitDiff
 	return prompt, nil
 }

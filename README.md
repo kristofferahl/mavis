@@ -52,7 +52,6 @@ Mavis automatically creates a default configuration file at `~/.config/mavis/con
 
 - `MAVIS_THEME`: Override the theme (e.g., "charm", "dracula", "catppuccin")
 - `MAVIS_CHIP`: Override the chip label shown in the UI
-- `MAVIS_AI_PROMPT`: Custom prompt to append to the AI request for personalized suggestions
 
 #### Debug Mode
 
@@ -77,12 +76,18 @@ Mavis can generate intelligent commit message suggestions using OpenAI's GPT mod
 
 #### Customization
 
-You can customize the AI behavior with additional environment variables:
+You can customize the AI behavior in your configuration file:
 
-- `MAVIS_AI_PROMPT`: Add custom instructions to the AI prompt for personalized suggestions
-  ```bash
-  export MAVIS_AI_PROMPT="Focus on business impact and use imperative mood."
-  ```
+```yaml
+ai:
+  enabled: true
+  provider: "openai"
+  custom_prompt: "Focus on business impact and use imperative mood."
+  openai:
+    model: "gpt-4o-mini"
+    max_completion_tokens: 500
+    temperature: 0.2
+```
 
 #### How It Works
 

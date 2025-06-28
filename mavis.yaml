@@ -1,2 +1,5 @@
 chip: mavis-dev-config
 theme: dracula
+ai:
+  custom_prompt: |
+    Focus on business impact and use imperative mood.

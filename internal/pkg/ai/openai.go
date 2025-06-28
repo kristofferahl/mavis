@@ -36,7 +36,7 @@ func NewOpenAIClient(c config.OpenAIConfig) (*OpenAIClient, error) {
 
 // GenerateFieldDefaults generates default values for fields based on a prepared prompt
 func (c *OpenAIClient) GenerateFieldDefaults(ctx context.Context, prompt string) (FieldDefaults, error) {
-	log.Debug("generating commit defaults", "prompt", prompt)
+	log.Debug("generating commit defaults", "client", "openai", "model", c.config.Model)
 	defaults := FieldDefaults{}
 
 	chatCompletion, err := c.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
