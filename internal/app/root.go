@@ -43,6 +43,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config path, %w", err)
 		}
 
+		log.Debug("config file", "path", configFile)
+
 		// create config, set the root config path
 		c := config.New(configFile)
 
