@@ -55,13 +55,13 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m spinnerModel) View() string {
-	text := m.text
+	text := version.Name + ": " + m.text
 	if m.err != nil {
 		text = version.Name + " error: " + m.err.Error()
 	}
 	str := fmt.Sprintf("\n  %s %s\n", m.spinner.View(), text)
 	if m.quitting {
-		return str
+		return str + "\n"
 	}
 	return str
 }
