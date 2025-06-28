@@ -75,14 +75,18 @@ var rootCmd = &cobra.Command{
 
 		if c.UseAI {
 			log.Debug("AI mode enabled")
+			done := ui.Spin("AI mode enabled, generating commit message...")
 			gitDiff, err := exec.CommandContext(cmd.Context(), "git", "diff", "--cached").Output()
 			if err != nil {
-				return fmt.Errorf("failed to get git diff, %w", err)
+				done(fmt.Errorf("failed to get git diff, %w", err))
+				return nil
 			}
 			err = ai.NewClient().GenerateFieldDefaults(cmd.Context(), c, string(gitDiff))
 			if err != nil {
-				return fmt.Errorf("failed to generate field defaults, %w", err)
+				done(fmt.Errorf("failed to generate defaults, %w", err))
+				return nil
 			}
+			done(nil)
 		}
 
 		p := tea.NewProgram(ui.NewCommitUI(*c))
