@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
+	"github.com/kristofferahl/mavis/internal/pkg/ai"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/ui"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
@@ -16,6 +17,7 @@ import (
 
 type RootOptions struct {
 	Debug bool
+	UseAI bool
 }
 
 var (
@@ -65,6 +67,22 @@ var rootCmd = &cobra.Command{
 		if len(chip) > 0 {
 			log.Debug("overriding chip from env", "chip", chip)
 			c.Chip = chip
+		}
+
+		if !c.UseAI {
+			c.UseAI = opt.UseAI
+		}
+
+		if c.UseAI {
+			log.Debug("AI mode enabled")
+			gitDiff, err := exec.CommandContext(cmd.Context(), "git", "diff", "--cached").Output()
+			if err != nil {
+				return fmt.Errorf("failed to get git diff, %w", err)
+			}
+			err = ai.NewClient().GenerateFieldDefaults(cmd.Context(), c, string(gitDiff))
+			if err != nil {
+				return fmt.Errorf("failed to generate field defaults, %w", err)
+			}
 		}
 
 		p := tea.NewProgram(ui.NewCommitUI(*c))
@@ -120,4 +138,5 @@ func appConfigPath() (string, error) {
 
 func init() {
 	rootCmd.Flags().BoolVarP(&opt.Debug, "debug", "d", false, "run in debug mode")
+	rootCmd.Flags().BoolVarP(&opt.UseAI, "ai", "", false, "use AI to generate commit message")
 }

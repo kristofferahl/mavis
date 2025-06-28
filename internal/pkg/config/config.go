@@ -21,6 +21,8 @@ type Config struct {
 	Template string `yaml:"template" json:"template"`
 
 	Fields []*Field `yaml:"fields" json:"fields"`
+
+	UseAI bool `yaml:"ai,omitempty" json:"ai,omitempty"`
 }
 
 func New(path string) *Config {
