@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -76,17 +77,24 @@ var rootCmd = &cobra.Command{
 		if c.AI.Enabled {
 			log.Debug("AI mode enabled", "provider", c.AI.Provider)
 			done := ui.Spin(fmt.Sprintf("AI mode enabled, generating commit message using %s...", c.AI.Provider))
+
 			gitDiff, err := exec.CommandContext(cmd.Context(), "git", "diff", "--cached").Output()
 			if err != nil {
 				done(fmt.Errorf("failed to get git diff, %w", err))
 				return nil
 			}
+
+			gitBranch := ""
+			if branchOutput, err := exec.CommandContext(cmd.Context(), "git", "branch", "--show-current").Output(); err == nil {
+				gitBranch = strings.TrimSpace(string(branchOutput))
+			}
+
 			client, err := ai.NewClient(c.AI)
 			if err != nil {
 				done(fmt.Errorf("failed to create AI client, %w", err))
 				return nil
 			}
-			prompt, err := ai.GeneratePrompt(c, string(gitDiff))
+			prompt, err := ai.GeneratePrompt(c, string(gitDiff), gitBranch)
 			if err != nil {
 				done(fmt.Errorf("failed to generate prompt, %w", err))
 				return nil
