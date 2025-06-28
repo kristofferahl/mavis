@@ -84,7 +84,7 @@ ai:
   provider: "openai"
   custom_prompt: "Focus on business impact and use imperative mood."
   openai:
-    model: "gpt-4o-mini"
+    model: "gpt-4.1-mini"
     max_completion_tokens: 500
     temperature: 0.2
 ```
