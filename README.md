@@ -44,6 +44,12 @@ Simply run `mavis` in your Git repository to start the interactive commit proces
 mavis
 ```
 
+### Keyboard Shortcuts
+
+- **Ctrl+A / Ctrl+S**: Accept preview and commit
+- **?**: Toggle help view
+- **Esc / Ctrl+C**: Quit without committing
+
 ### Configuration
 
 Mavis automatically creates a default configuration file at `~/.config/mavis/config.yaml` on first run. You can customize this file to change themes, fields, and commit message templates.
