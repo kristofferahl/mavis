@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -161,6 +163,8 @@ func NewCommitUI(config config.Config) tea.Model {
 
 		config: config,
 		style:  style,
+		keys:   keys,
+		help:   help.New(),
 	}
 }
 
@@ -170,6 +174,8 @@ type CommitUI struct {
 
 	config config.Config
 	style  commitUIStyle
+	keys   keyMap
+	help   help.Model
 
 	quitting bool
 	width    int
@@ -195,10 +201,18 @@ func (m CommitUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		m.help.Width = msg.Width
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc":
+		switch {
+		case key.Matches(msg, m.keys.Commit):
+			q := true
+			m.Confirm = &q
+			m.quitting = true
+			return m, tea.Quit
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+		case key.Matches(msg, m.keys.Quit):
 			q := false
 			m.Confirm = &q
 			m.quitting = true
@@ -291,6 +305,12 @@ func (m CommitUI) View() string {
 
 		row := lipgloss.JoinHorizontal(lipgloss.Top, input, preview)
 		doc.WriteString(row + "\n")
+	}
+
+	// Help
+	helpView := m.help.View(m.keys)
+	if helpView != "" {
+		doc.WriteString(helpView + "\n")
 	}
 
 	// Okay, let's render it
