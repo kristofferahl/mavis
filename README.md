@@ -12,6 +12,7 @@ Mavis is an interactive terminal UI tool for creating structured Git commits. It
 
 - **Interactive UI**: Split-screen with form inputs and live commit message preview
 - **AI-Powered Suggestions**: Generate commit message field defaults using OpenAI
+- **MCP Server**: Integrate with AI agents like Claude Code via Model Context Protocol
 - **Customizable Templates**: Format commit messages using a flexible template system
 - **Configurable Fields**: Define the structure of your commit messages
 - **Multiple Themes**: Choose from themes like charm, dracula, catppuccin, and more
@@ -104,3 +105,54 @@ ai:
 - Respects your existing field configuration and templates
 - Works with any custom fields you've defined in your config
 - Designed to support multiple AI providers (currently supports OpenAI)
+
+### MCP Server (AI Agent Integration)
+
+Mavis includes an MCP (Model Context Protocol) server that allows AI agents like Claude Code, Kiro, and others to create commits using your mavis configuration.
+
+#### Setup
+
+Add the following to your project's `.mcp.json` file:
+
+```json
+{
+  "mcpServers": {
+    "mavis": {
+      "command": "mavis",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Or if running from source:
+
+```json
+{
+  "mcpServers": {
+    "mavis": {
+      "command": "go",
+      "args": ["run", ".", "mcp"]
+    }
+  }
+}
+```
+
+#### Available Tools
+
+The MCP server exposes three tools:
+
+| Tool | Description |
+|------|-------------|
+| `prepare_commit` | Returns the commit template, fields, and instructions for generating field values |
+| `preview_commit` | Renders a commit message from provided field values and returns an approval ID |
+| `approve_commit` | Executes the commit after user approval |
+
+#### How It Works
+
+1. The AI agent calls `prepare_commit` to get your configured fields and template
+2. It analyzes staged changes and generates appropriate field values
+3. It calls `preview_commit` to render the commit message
+4. After showing you the preview and receiving your approval, it calls `approve_commit`
+
+This ensures your commits follow your configured conventions while letting AI agents handle the analysis and drafting
