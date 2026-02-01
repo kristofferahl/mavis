@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -231,11 +230,11 @@ func (s *Server) handleApproveCommit(ctx context.Context, request mcp.CallToolRe
 	// Execute git commit
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", pc.Message)
 	cmd.Dir = pc.RepoPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("git commit failed: %v", err)), nil
+	// Capture output instead of writing to stdout/stderr (which would corrupt MCP stdio protocol)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("git commit failed: %v\n%s", err, string(output))), nil
 	}
 
 	// Remove from cache
