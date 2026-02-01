@@ -34,6 +34,7 @@ func NewServer(cfg *config.Config) *Server {
 	}
 
 	s.registerTools()
+	s.registerPrompts()
 	return s
 }
 
@@ -68,6 +69,22 @@ func (s *Server) registerTools() {
 		),
 	)
 	s.mcpServer.AddTool(approveCommitTool, s.handleApproveCommit)
+}
+
+func (s *Server) registerPrompts() {
+	mavisPrompt := mcp.NewPrompt("mavis",
+		mcp.WithPromptDescription("Create a commit using mavis"),
+	)
+	s.mcpServer.AddPrompt(mavisPrompt, s.handleMavisPrompt)
+}
+
+func (s *Server) handleMavisPrompt(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	return mcp.NewGetPromptResult("Create a commit using mavis", []mcp.PromptMessage{
+		mcp.NewPromptMessage(
+			mcp.RoleUser,
+			mcp.NewTextContent("Use the mavis tools to commit staged changes. Call prepare_commit first, then preview_commit with appropriate field values, show me the result, and wait for my approval before calling approve_commit."),
+		),
+	}), nil
 }
 
 // PrepareCommitResult is the response from prepare_commit
