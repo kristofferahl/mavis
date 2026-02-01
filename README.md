@@ -148,6 +148,14 @@ The MCP server exposes three tools:
 | `preview_commit` | Renders a commit message from provided field values and returns an approval ID |
 | `approve_commit` | Executes the commit after user approval |
 
+#### Available Prompts
+
+The MCP server also provides a prompt for AI agent guidance:
+
+| Prompt | Description |
+|--------|-------------|
+| `mavis` | Instructs the AI agent on the commit workflow: call `prepare_commit`, then `preview_commit`, show the result to the user, and wait for approval before calling `approve_commit` |
+
 #### How It Works
 
 1. The AI agent calls `prepare_commit` to get your configured fields and template
