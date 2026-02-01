@@ -36,5 +36,9 @@ release:
 	@test $${GITHUB_TOKEN?Environment variable GITHUB_TOKEN is required}
 	git push --tags
 	goreleaser release --clean
+	@echo "\nNote: If homebrew cache issues occur, run:"
+	@echo "  brew update"
+	@echo "or"
+	@echo "  brew untap kristofferahl/tap && brew tap kristofferahl/tap"
 
 .PHONY: default test
