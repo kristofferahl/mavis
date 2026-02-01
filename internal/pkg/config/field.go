@@ -43,6 +43,21 @@ func (f *Field) TemplateValues() (values []commit.TemplateValue) {
 	return
 }
 
+// TemplateValuesFrom returns template values using the provided value instead of the huh.Field reference
+func (f *Field) TemplateValuesFrom(value interface{}) (values []commit.TemplateValue) {
+	for _, rule := range f.Formatting {
+		val := fmt.Sprintf("%v", value)
+		if rule.When == "" || val == rule.When {
+			values = append(values, commit.TemplateValue{
+				Key:    rule.Key,
+				Value:  value,
+				Format: rule.Format,
+			})
+		}
+	}
+	return
+}
+
 type FormattingRule struct {
 	Key    string `yaml:"key" json:"key"`
 	Format string `yaml:"format" json:"format"`
