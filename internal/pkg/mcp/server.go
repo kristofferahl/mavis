@@ -51,7 +51,7 @@ func (s *Server) registerTools() {
 
 	// Tool: preview_commit
 	previewCommitTool := mcp.NewTool("preview_commit",
-		mcp.WithDescription("Preview a commit message with the provided field values. Returns the rendered commit message and an approval ID."),
+		mcp.WithDescription("Preview a commit message with the provided field values. Returns the rendered commit message and an approval ID. IMPORTANT: After calling this, you MUST show the message to the user and wait for their explicit approval before calling approve_commit."),
 		mcp.WithString("values",
 			mcp.Required(),
 			mcp.Description("JSON object with field values keyed by field title"),
@@ -61,7 +61,7 @@ func (s *Server) registerTools() {
 
 	// Tool: approve_commit
 	approveCommitTool := mcp.NewTool("approve_commit",
-		mcp.WithDescription("Approve and execute a previously previewed commit."),
+		mcp.WithDescription("Execute a previously previewed commit. ONLY call this after the user has explicitly approved the commit message. Never call this automatically."),
 		mcp.WithString("id",
 			mcp.Required(),
 			mcp.Description("The approval ID returned from preview_commit"),
