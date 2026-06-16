@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "mavis": {
+    "mavis-dev": {
       "command": "go",
       "args": ["run", ".", "mcp"]
     }
