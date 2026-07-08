@@ -1,12 +1,14 @@
 # mavis
 
-unconventional commit
+**(Un)Conventional Commits, your rules.**
 
-<img alt="mavis - unconventional commit" src="demo.gif" width="800" />
+<img alt="mavis - (Un)Conventional Commits, your rules" src="demo.gif" width="800" />
 
 ## About
 
-Mavis is an interactive terminal UI tool for creating structured Git commits. It provides a split-screen interface with customizable form inputs on the left and a live preview of your commit message on the right.
+Mavis is a terminal-first tool for writing structured Git commits — Conventional Commits, your rules.
+
+You define the fields, formatting rules, and message template, so commits follow *your* convention rather than a fixed spec. Interactive TUI with live preview, AI-assisted defaults, and an MCP server for committing straight from agents like Claude Code.
 
 ### Key Features
 
