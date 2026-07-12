@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 )
 

@@ -3,10 +3,10 @@ package ui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"charm.land/log/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
 )
 
@@ -54,16 +54,16 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m spinnerModel) View() string {
+func (m spinnerModel) View() tea.View {
 	text := version.Name + ": " + m.text
 	if m.err != nil {
 		text = version.Name + " error: " + m.err.Error()
 	}
 	str := fmt.Sprintf("\n  %s %s\n", m.spinner.View(), text)
 	if m.quitting {
-		return str + "\n"
+		return tea.NewView(str + "\n")
 	}
-	return str
+	return tea.NewView(str)
 }
 
 func Spin(text string) func(err error) {

@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/log"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/log/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/ai"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/ui"

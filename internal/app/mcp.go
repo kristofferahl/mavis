@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/mcp"
 	"github.com/spf13/cobra"

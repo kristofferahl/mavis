@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"

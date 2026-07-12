@@ -2,47 +2,20 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/commit"
 	"github.com/kristofferahl/mavis/internal/pkg/config"
 	"github.com/kristofferahl/mavis/internal/pkg/version"
 )
 
 func NewCommitUI(config config.Config) tea.Model {
-	var theme *huh.Theme
-	switch config.Theme {
-	case "base":
-		theme = huh.ThemeBase()
-	case "base16":
-		theme = huh.ThemeBase16()
-	case "catppuccin":
-		theme = huh.ThemeCatppuccin()
-	case "dracula":
-		theme = huh.ThemeDracula()
-	case "charm":
-		theme = huh.ThemeCharm()
-	default:
-		theme = huh.ThemeCharm()
-	}
-	theme.Focused.Card = theme.Focused.Card.PaddingLeft(2)
-	theme.Focused.Base = theme.Focused.Base.PaddingLeft(2).BorderStyle(lipgloss.HiddenBorder())
-
-	style := commitUIStyle{
-		Normal:    theme.Focused.Base.GetForeground(),
-		Subtle:    theme.Focused.Description.GetForeground(),
-		Highlight: theme.Focused.Title.GetForeground(),
-		Padding:   2,
-	}
-	style.Doc = lipgloss.NewStyle().Padding(1, style.Padding, 1, style.Padding)
-	style.Base = theme.Focused.Base.Padding(0).Margin(0).Border(lipgloss.HiddenBorder(), false)
-	style.Border = lipgloss.NormalBorder()
-
 	commit := commit.NewRenderer(config.Template)
 	okay := true
 
@@ -153,19 +126,64 @@ func NewCommitUI(config config.Config) tea.Model {
 		groups[i] = huh.NewGroup(input)
 	}
 
-	return CommitUI{
+	m := CommitUI{
 		Commit: commit,
 		form: huh.
 			NewForm(groups...).
-			WithTheme(theme).
 			WithShowHelp(true),
 		Confirm: &okay,
 
 		config: config,
-		style:  style,
 		keys:   keys,
 		help:   help.New(),
 	}
+
+	// Apply an initial theme assuming a dark background. This is corrected
+	// asynchronously once the terminal reports its real background color
+	// (see Init/Update handling of tea.BackgroundColorMsg).
+	return m.withTheme(true)
+}
+
+// selectTheme returns the huh styles for the configured theme name.
+func selectTheme(name string, isDark bool) *huh.Styles {
+	switch name {
+	case "base":
+		return huh.ThemeBase(isDark)
+	case "base16":
+		return huh.ThemeBase16(isDark)
+	case "catppuccin":
+		return huh.ThemeCatppuccin(isDark)
+	case "dracula":
+		return huh.ThemeDracula(isDark)
+	case "charm":
+		return huh.ThemeCharm(isDark)
+	default:
+		return huh.ThemeCharm(isDark)
+	}
+}
+
+// withTheme rebuilds the form theme, help styles, and derived UI styles for the
+// given background brightness, returning the updated model. Safe to call at
+// runtime; the form retains its field state.
+func (m CommitUI) withTheme(isDark bool) CommitUI {
+	theme := selectTheme(m.config.Theme, isDark)
+	theme.Focused.Card = theme.Focused.Card.PaddingLeft(2)
+	theme.Focused.Base = theme.Focused.Base.PaddingLeft(2).BorderStyle(lipgloss.HiddenBorder())
+
+	style := commitUIStyle{
+		Normal:    theme.Focused.Base.GetForeground(),
+		Subtle:    theme.Focused.Description.GetForeground(),
+		Highlight: theme.Focused.Title.GetForeground(),
+		Padding:   2,
+	}
+	style.Doc = lipgloss.NewStyle().Padding(1, style.Padding, 1, style.Padding)
+	style.Base = theme.Focused.Base.Padding(0).Margin(0).Border(lipgloss.HiddenBorder(), false)
+	style.Border = lipgloss.NormalBorder()
+
+	m.form = m.form.WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return theme }))
+	m.help.Styles = help.DefaultStyles(isDark)
+	m.style = style
+	return m
 }
 
 type CommitUI struct {
@@ -183,9 +201,9 @@ type CommitUI struct {
 }
 
 type commitUIStyle struct {
-	Normal    lipgloss.TerminalColor
-	Subtle    lipgloss.TerminalColor
-	Highlight lipgloss.TerminalColor
+	Normal    color.Color
+	Subtle    color.Color
+	Highlight color.Color
 
 	Doc     lipgloss.Style
 	Base    lipgloss.Style
@@ -194,16 +212,20 @@ type commitUIStyle struct {
 }
 
 func (m CommitUI) Init() tea.Cmd {
-	return m.form.Init()
+	return tea.Batch(m.form.Init(), tea.RequestBackgroundColor)
 }
 
 func (m CommitUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.help.Width = msg.Width
+		m.help.SetWidth(msg.Width)
 
-	case tea.KeyMsg:
+	case tea.BackgroundColorMsg:
+		m = m.withTheme(msg.IsDark())
+		return m, nil
+
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.Commit):
 			q := true
@@ -221,14 +243,11 @@ func (m CommitUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmds []tea.Cmd
-	var current tea.Model
-
-	current = m.form
 
 	// Process the form
-	current, cmd := current.Update(msg)
-	form, ok := current.(*huh.Form)
-	if ok {
+	updated, cmd := m.form.Update(msg)
+	if form, ok := updated.(*huh.Form); ok {
+		m.form = form
 		cmds = append(cmds, cmd)
 		if form.State == huh.StateCompleted {
 			return m, tea.Quit
@@ -238,13 +257,13 @@ func (m CommitUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m CommitUI) View() string {
+func (m CommitUI) View() tea.View {
 	s := m.style
 	if m.quitting {
-		return ""
+		return tea.NewView("")
 	}
 	if m.width == 0 {
-		return s.Base.Foreground(s.Highlight).Render("loading...")
+		return tea.NewView(s.Base.Foreground(s.Highlight).Render("loading..."))
 	}
 
 	fullWidth := m.width - s.Doc.GetPaddingLeft() - s.Doc.GetPaddingRight()
@@ -253,7 +272,7 @@ func (m CommitUI) View() string {
 	if m.Confirm != nil {
 		done := form.State == huh.StateCompleted
 		if done {
-			return ""
+			return tea.NewView("")
 		}
 	}
 
@@ -314,5 +333,5 @@ func (m CommitUI) View() string {
 	}
 
 	// Okay, let's render it
-	return s.Doc.Render(doc.String()) + "\n"
+	return tea.NewView(s.Doc.Render(doc.String()) + "\n")
 }

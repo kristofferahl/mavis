@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/kristofferahl/mavis/internal/pkg/commit"
 )
 
