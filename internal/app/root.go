@@ -27,7 +27,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:           "mavis",
-	Short:         "mavis - unconventional commit",
+	Short:         "mavis - " + version.Description,
 	SilenceUsage:  true,
 	SilenceErrors: false,
 	Version:       fmt.Sprintf("%s (commit=%s)", version.Version, version.Commit),

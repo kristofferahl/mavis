@@ -3,7 +3,7 @@ package version
 // Name for this cli
 const (
 	Name        string = "mavis"
-	Description string = "unconventional commit"
+	Description string = "(Un)Conventional Commits, your rules"
 )
 
 // Version for this cli

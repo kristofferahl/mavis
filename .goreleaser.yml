@@ -48,7 +48,7 @@ brews:
     commit_author:
       name: "Kristoffer Ahl"
     homepage: https://github.com/kristofferahl/mavis
-    description: unconventional commit
+    description: (Un)Conventional Commits, your rules
     license: Apache License 2.0
     install: |
       bin.install 'mavis'
