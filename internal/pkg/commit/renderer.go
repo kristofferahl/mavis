@@ -60,6 +60,25 @@ func (c *Renderer) Render(data []TemplateValue) string {
 		}
 		s = strings.ReplaceAll(s, "{{"+cd.Key+"}}", fv)
 	}
-	c.lastRender = strings.TrimSpace(s)
+	c.lastRender = strings.TrimSpace(normalizeBlankLines(s))
 	return c.String()
+}
+
+// normalizeBlankLines mirrors git's default --cleanup=whitespace: trailing
+// whitespace is stripped from every line and runs of blank lines are
+// collapsed into a single blank line.
+func normalizeBlankLines(s string) string {
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	prevBlank := false
+	for _, line := range lines {
+		line = strings.TrimRight(line, " \t\r")
+		blank := line == ""
+		if blank && prevBlank {
+			continue
+		}
+		out = append(out, line)
+		prevBlank = blank
+	}
+	return strings.Join(out, "\n")
 }
