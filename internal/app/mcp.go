@@ -45,7 +45,11 @@ in your AI agent's configuration.`,
 		}
 
 		// Read config file
-		if err := c.Read(); err != nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current working directory, %w", err)
+		}
+		if err := c.Read(pwd); err != nil {
 			return err
 		}
 

@@ -164,13 +164,15 @@ func (c *Config) Exists() bool {
 	return true
 }
 
-func (c *Config) Read() error {
-	err := c.read(c.path)
+// Read parses the root config file and any includes whose `when` condition
+// matches dir, the directory the config is being resolved for.
+func (c *Config) Read(dir string) error {
+	err := c.read(c.path, dir)
 	log.Debug("configuration parsed", "files", c.processed, "error", err != nil)
 	return err
 }
 
-func (c *Config) read(path string) error {
+func (c *Config) read(path, dir string) error {
 	root := c.path == path
 	log.Debug("reading config", "file", path, "root", root)
 	b, err := os.ReadFile(path)
@@ -181,21 +183,16 @@ func (c *Config) read(path string) error {
 		return fmt.Errorf("failed to unmarshal config, %w", err)
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory, %w", err)
-	}
-
 	if c.path == path {
 		log.Debug("applying includes from root config")
 		for _, i := range c.Include {
-			if i.Match(pwd) {
+			if i.Match(dir) {
 				log.Debug("conditon match, including", "condition", i.When, "path", i.Path)
 				includePath, err := resolvePath(i.Path)
 				if err != nil {
 					return fmt.Errorf("failed to resolve include path, %w", err)
 				}
-				if err := c.read(includePath); err != nil {
+				if err := c.read(includePath, dir); err != nil {
 					return err
 				}
 			} else {
