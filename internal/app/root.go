@@ -56,7 +56,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		// read config file
-		if err := c.Read(); err != nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current working directory, %w", err)
+		}
+		if err := c.Read(pwd); err != nil {
 			return err
 		}
 

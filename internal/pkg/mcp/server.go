@@ -14,22 +14,26 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// ConfigLoader loads the mavis config as it applies to dir.
+type ConfigLoader func(dir string) (*config.Config, error)
+
 // Server wraps the MCP server with mavis-specific functionality
 type Server struct {
-	mcpServer *server.MCPServer
-	config    *config.Config
-	cache     *Cache
+	mcpServer  *server.MCPServer
+	loadConfig ConfigLoader
+	cache      *Cache
 }
 
-// NewServer creates a new MCP server for mavis
-func NewServer(cfg *config.Config) *Server {
+// NewServer creates a new MCP server for mavis. The config is loaded on
+// every tool call so that it reflects the directory the call is made for.
+func NewServer(loadConfig ConfigLoader) *Server {
 	s := &Server{
 		mcpServer: server.NewMCPServer(
 			version.Name,
 			version.Version,
 		),
-		config: cfg,
-		cache:  NewCache(DefaultTTL),
+		loadConfig: loadConfig,
+		cache:      NewCache(DefaultTTL),
 	}
 
 	s.registerTools()
@@ -45,7 +49,11 @@ func (s *Server) Serve() error {
 func (s *Server) registerTools() {
 	// Tool: prepare_commit
 	prepareCommitTool := mcp.NewTool("prepare_commit",
-		mcp.WithDescription("Get the commit message template, fields, and instructions. Call this first to understand what values are needed for a commit."),
+		mcp.WithDescription("Get the commit message template, fields, and instructions for the repository at path. Call this first to understand what values are needed for a commit."),
+		mcp.WithString("path",
+			mcp.Required(),
+			mcp.Description("Absolute path to the git repository to commit in (any directory inside it works)"),
+		),
 	)
 	s.mcpServer.AddTool(prepareCommitTool, s.handlePrepareCommit)
 
@@ -55,6 +63,10 @@ func (s *Server) registerTools() {
 		mcp.WithString("values",
 			mcp.Required(),
 			mcp.Description("JSON object with field values keyed by field title"),
+		),
+		mcp.WithString("path",
+			mcp.Required(),
+			mcp.Description("Absolute path to the git repository to commit in (any directory inside it works)"),
 		),
 	)
 	s.mcpServer.AddTool(previewCommitTool, s.handlePreviewCommit)
@@ -81,13 +93,35 @@ func (s *Server) handleMavisPrompt(ctx context.Context, request mcp.GetPromptReq
 	return mcp.NewGetPromptResult("Create a commit using mavis", []mcp.PromptMessage{
 		mcp.NewPromptMessage(
 			mcp.RoleUser,
-			mcp.NewTextContent("Use the mavis tools to commit staged changes. Call prepare_commit first, then preview_commit with appropriate field values, show me the result, and wait for my approval before calling approve_commit."),
+			mcp.NewTextContent("Use the mavis tools to commit staged changes in the repository I am working in. Pass that repository's absolute path as path to prepare_commit and preview_commit. Call prepare_commit first, then preview_commit with appropriate field values, show me the result, and wait for my approval before calling approve_commit."),
 		),
 	}), nil
 }
 
+// resolveRepo reads the required path argument, finds the repository that
+// contains it, and loads the config as it applies to that repository's root.
+func (s *Server) resolveRepo(ctx context.Context, request mcp.CallToolRequest) (string, *config.Config, *mcp.CallToolResult) {
+	path, err := request.RequireString("path")
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("missing path parameter: %v", err))
+	}
+
+	repoPath, err := getRepoPath(ctx, path)
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err))
+	}
+
+	cfg, err := s.loadConfig(repoPath)
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err))
+	}
+
+	return repoPath, cfg, nil
+}
+
 // PrepareCommitResult is the response from prepare_commit
 type PrepareCommitResult struct {
+	RepoPath     string          `json:"repo_path"`
 	Template     string          `json:"template"`
 	Fields       []*config.Field `json:"fields"`
 	Instructions string          `json:"instructions"`
@@ -95,9 +129,12 @@ type PrepareCommitResult struct {
 
 const mcpInstructions = `Generate field values for a git commit message based on STAGED changes only.
 
+Repository: {{repo_path}}
+Run every git command against this repository, and pass this same path to preview_commit.
+
 STEP 1 - Gather context (run these commands first):
-- git diff --cached        → View the staged changes (this is what you're committing)
-- git branch --show-current → Get the current branch name for context
+- git -C "{{repo_path}}" diff --cached         → View the staged changes (this is what you're committing)
+- git -C "{{repo_path}}" branch --show-current → Get the current branch name for context
 
 STEP 2 - Analyze the changes:
 - Focus on STAGED changes only; ignore unstaged and untracked files
@@ -116,14 +153,20 @@ Breaking change guidance:
 - Mark as breaking if the change removes or renames public APIs, changes function signatures, removes configuration options, or alters expected behavior in ways that require users to update their code`
 
 func (s *Server) handlePrepareCommit(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instructions := mcpInstructions
-	if s.config.AI.CustomPrompt != "" {
-		instructions = instructions + "\n\nAdditional guidance:\n" + s.config.AI.CustomPrompt
+	repoPath, cfg, errResult := s.resolveRepo(ctx, request)
+	if errResult != nil {
+		return errResult, nil
+	}
+
+	instructions := strings.ReplaceAll(mcpInstructions, "{{repo_path}}", repoPath)
+	if cfg.AI.CustomPrompt != "" {
+		instructions = instructions + "\n\nAdditional guidance:\n" + cfg.AI.CustomPrompt
 	}
 
 	result := PrepareCommitResult{
-		Template:     strings.TrimPrefix(s.config.Template, "\n"),
-		Fields:       s.config.Fields,
+		RepoPath:     repoPath,
+		Template:     strings.TrimPrefix(cfg.Template, "\n"),
+		Fields:       cfg.Fields,
 		Instructions: instructions,
 	}
 
@@ -154,15 +197,14 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError(fmt.Sprintf("invalid values JSON: %v", err)), nil
 	}
 
-	// Get repo path
-	repoPath, err := getRepoPath()
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err)), nil
+	repoPath, cfg, errResult := s.resolveRepo(ctx, request)
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	// Validate required fields and build template values
 	var templateValues []commit.TemplateValue
-	for _, field := range s.config.Fields {
+	for _, field := range cfg.Fields {
 		value, ok := values[field.Title]
 		if !ok {
 			value = nil
@@ -188,7 +230,7 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	// Render the commit message
-	renderer := commit.NewRenderer(s.config.Template)
+	renderer := commit.NewRenderer(cfg.Template)
 	message := renderer.Render(templateValues)
 
 	// Store in cache
@@ -252,14 +294,4 @@ func (s *Server) handleApproveCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil
-}
-
-// getRepoPath returns the root path of the current git repository
-func getRepoPath() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("not in a git repository: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
 }
