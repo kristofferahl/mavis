@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -155,7 +156,11 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	// Get repo path
-	repoPath, err := getRepoPath()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get working directory: %v", err)), nil
+	}
+	repoPath, err := getRepoPath(ctx, cwd)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err)), nil
 	}
@@ -252,14 +257,4 @@ func (s *Server) handleApproveCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil
-}
-
-// getRepoPath returns the root path of the current git repository
-func getRepoPath() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("not in a git repository: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
 }
