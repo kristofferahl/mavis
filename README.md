@@ -144,11 +144,13 @@ Or if running from source:
 
 The MCP server exposes three tools:
 
-| Tool | Description |
-|------|-------------|
-| `prepare_commit` | Returns the commit template, fields, and instructions for generating field values |
-| `preview_commit` | Renders a commit message from provided field values and returns an approval ID |
-| `approve_commit` | Executes the commit after user approval |
+| Tool | Arguments | Description |
+|------|-----------|-------------|
+| `prepare_commit` | `path` | Returns the commit template, fields, and instructions for generating field values |
+| `preview_commit` | `path`, `values` | Renders a commit message from provided field values and returns an approval ID |
+| `approve_commit` | `id` | Executes the commit after user approval |
+
+`path` is required and must be an absolute path to the git repository to commit in (any directory inside it works). The server resolves the repository root from it, loads your configuration for that repository, and commits there. This lets a single running server commit to any repository, not just the one it was started in.
 
 #### Available Prompts
 
@@ -156,13 +158,15 @@ The MCP server also provides a prompt for AI agent guidance:
 
 | Prompt | Description |
 |--------|-------------|
-| `mavis` | Instructs the AI agent on the commit workflow: call `prepare_commit`, then `preview_commit`, show the result to the user, and wait for approval before calling `approve_commit` |
+| `mavis` | Instructs the AI agent on the commit workflow: pass the repository path, call `prepare_commit`, then `preview_commit`, show the result to the user, and wait for approval before calling `approve_commit` |
 
 #### How It Works
 
-1. The AI agent calls `prepare_commit` to get your configured fields and template
-2. It analyzes staged changes and generates appropriate field values
-3. It calls `preview_commit` to render the commit message
-4. After showing you the preview and receiving your approval, it calls `approve_commit`
+1. The AI agent calls `prepare_commit` with the repository `path` to get your configured fields and template for that repository
+2. It analyzes the staged changes in that repository and generates appropriate field values
+3. It calls `preview_commit` with the same `path` to render the commit message
+4. After showing you the preview and receiving your approval, it calls `approve_commit`, which commits in that repository
+
+The configuration is read on every `prepare_commit` and `preview_commit` call, so config changes apply without restarting the server.
 
 This ensures your commits follow your configured conventions while letting AI agents handle the analysis and drafting
