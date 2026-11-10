@@ -24,5 +24,21 @@ func (i Include) Match(path string) bool {
 	if err != nil {
 		return false
 	}
-	return strings.HasPrefix(path, whenPath)
+	whenPath, err = filepath.Abs(whenPath)
+	if err != nil {
+		return false
+	}
+	return isWithin(path, whenPath)
+}
+
+// isWithin reports whether path is dir or inside it, comparing whole path
+// segments so that /a/mavis does not match /a/mavis-other.
+func isWithin(path, dir string) bool {
+	if path == dir {
+		return true
+	}
+	if !strings.HasSuffix(dir, string(filepath.Separator)) {
+		dir += string(filepath.Separator)
+	}
+	return strings.HasPrefix(path, dir)
 }
