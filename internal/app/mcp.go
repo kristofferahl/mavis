@@ -34,35 +34,32 @@ in your AI agent's configuration.`,
 			return fmt.Errorf("failed to get config path: %w", err)
 		}
 
-		// Create config
-		c := config.New(configFile)
-
 		// Create config file if it doesn't exist
-		if !c.Exists() {
+		if c := config.New(configFile); !c.Exists() {
 			if err := c.Write(); err != nil {
 				return err
 			}
 		}
 
-		// Read config file
-		pwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current working directory, %w", err)
-		}
-		if err := c.Read(pwd); err != nil {
-			return err
-		}
+		// Config is loaded per tool call so it reflects the directory being committed in
+		loadConfig := func(dir string) (*config.Config, error) {
+			c := config.New(configFile)
+			if err := c.Read(dir); err != nil {
+				return nil, err
+			}
 
-		// Apply environment overrides
-		if theme := os.Getenv("MAVIS_THEME"); theme != "" {
-			c.Theme = theme
-		}
-		if chip := os.Getenv("MAVIS_CHIP"); chip != "" {
-			c.Chip = chip
+			// Apply environment overrides
+			if theme := os.Getenv("MAVIS_THEME"); theme != "" {
+				c.Theme = theme
+			}
+			if chip := os.Getenv("MAVIS_CHIP"); chip != "" {
+				c.Chip = chip
+			}
+			return c, nil
 		}
 
 		// Create and start MCP server
-		server := mcp.NewServer(c)
+		server := mcp.NewServer(loadConfig)
 		return server.Serve()
 	},
 }

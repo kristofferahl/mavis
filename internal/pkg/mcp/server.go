@@ -15,22 +15,26 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// ConfigLoader loads the mavis config as it applies to dir.
+type ConfigLoader func(dir string) (*config.Config, error)
+
 // Server wraps the MCP server with mavis-specific functionality
 type Server struct {
-	mcpServer *server.MCPServer
-	config    *config.Config
-	cache     *Cache
+	mcpServer  *server.MCPServer
+	loadConfig ConfigLoader
+	cache      *Cache
 }
 
-// NewServer creates a new MCP server for mavis
-func NewServer(cfg *config.Config) *Server {
+// NewServer creates a new MCP server for mavis. The config is loaded on
+// every tool call so that it reflects the directory the call is made for.
+func NewServer(loadConfig ConfigLoader) *Server {
 	s := &Server{
 		mcpServer: server.NewMCPServer(
 			version.Name,
 			version.Version,
 		),
-		config: cfg,
-		cache:  NewCache(DefaultTTL),
+		loadConfig: loadConfig,
+		cache:      NewCache(DefaultTTL),
 	}
 
 	s.registerTools()
@@ -117,14 +121,23 @@ Breaking change guidance:
 - Mark as breaking if the change removes or renames public APIs, changes function signatures, removes configuration options, or alters expected behavior in ways that require users to update their code`
 
 func (s *Server) handlePrepareCommit(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to get working directory: %v", err)), nil
+	}
+	cfg, err := s.loadConfig(cwd)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err)), nil
+	}
+
 	instructions := mcpInstructions
-	if s.config.AI.CustomPrompt != "" {
-		instructions = instructions + "\n\nAdditional guidance:\n" + s.config.AI.CustomPrompt
+	if cfg.AI.CustomPrompt != "" {
+		instructions = instructions + "\n\nAdditional guidance:\n" + cfg.AI.CustomPrompt
 	}
 
 	result := PrepareCommitResult{
-		Template:     strings.TrimPrefix(s.config.Template, "\n"),
-		Fields:       s.config.Fields,
+		Template:     strings.TrimPrefix(cfg.Template, "\n"),
+		Fields:       cfg.Fields,
 		Instructions: instructions,
 	}
 
@@ -165,9 +178,14 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err)), nil
 	}
 
+	cfg, err := s.loadConfig(cwd)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err)), nil
+	}
+
 	// Validate required fields and build template values
 	var templateValues []commit.TemplateValue
-	for _, field := range s.config.Fields {
+	for _, field := range cfg.Fields {
 		value, ok := values[field.Title]
 		if !ok {
 			value = nil
@@ -193,7 +211,7 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	// Render the commit message
-	renderer := commit.NewRenderer(s.config.Template)
+	renderer := commit.NewRenderer(cfg.Template)
 	message := renderer.Render(templateValues)
 
 	// Store in cache
