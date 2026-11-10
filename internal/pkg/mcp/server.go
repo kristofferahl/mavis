@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -51,6 +50,10 @@ func (s *Server) registerTools() {
 	// Tool: prepare_commit
 	prepareCommitTool := mcp.NewTool("prepare_commit",
 		mcp.WithDescription("Get the commit message template, fields, and instructions. Call this first to understand what values are needed for a commit."),
+		mcp.WithString("path",
+			mcp.Required(),
+			mcp.Description("Absolute path to the git repository to commit in (any directory inside it works)"),
+		),
 	)
 	s.mcpServer.AddTool(prepareCommitTool, s.handlePrepareCommit)
 
@@ -60,6 +63,10 @@ func (s *Server) registerTools() {
 		mcp.WithString("values",
 			mcp.Required(),
 			mcp.Description("JSON object with field values keyed by field title"),
+		),
+		mcp.WithString("path",
+			mcp.Required(),
+			mcp.Description("Absolute path to the git repository to commit in (any directory inside it works)"),
 		),
 	)
 	s.mcpServer.AddTool(previewCommitTool, s.handlePreviewCommit)
@@ -91,8 +98,30 @@ func (s *Server) handleMavisPrompt(ctx context.Context, request mcp.GetPromptReq
 	}), nil
 }
 
+// resolveRepo reads the required path argument, finds the repository that
+// contains it, and loads the config as it applies to that repository's root.
+func (s *Server) resolveRepo(ctx context.Context, request mcp.CallToolRequest) (string, *config.Config, *mcp.CallToolResult) {
+	path, err := request.RequireString("path")
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("missing path parameter: %v", err))
+	}
+
+	repoPath, err := getRepoPath(ctx, path)
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err))
+	}
+
+	cfg, err := s.loadConfig(repoPath)
+	if err != nil {
+		return "", nil, mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err))
+	}
+
+	return repoPath, cfg, nil
+}
+
 // PrepareCommitResult is the response from prepare_commit
 type PrepareCommitResult struct {
+	RepoPath     string          `json:"repo_path"`
 	Template     string          `json:"template"`
 	Fields       []*config.Field `json:"fields"`
 	Instructions string          `json:"instructions"`
@@ -121,13 +150,9 @@ Breaking change guidance:
 - Mark as breaking if the change removes or renames public APIs, changes function signatures, removes configuration options, or alters expected behavior in ways that require users to update their code`
 
 func (s *Server) handlePrepareCommit(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get working directory: %v", err)), nil
-	}
-	cfg, err := s.loadConfig(cwd)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err)), nil
+	repoPath, cfg, errResult := s.resolveRepo(ctx, request)
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	instructions := mcpInstructions
@@ -136,6 +161,7 @@ func (s *Server) handlePrepareCommit(ctx context.Context, request mcp.CallToolRe
 	}
 
 	result := PrepareCommitResult{
+		RepoPath:     repoPath,
 		Template:     strings.TrimPrefix(cfg.Template, "\n"),
 		Fields:       cfg.Fields,
 		Instructions: instructions,
@@ -168,19 +194,9 @@ func (s *Server) handlePreviewCommit(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError(fmt.Sprintf("invalid values JSON: %v", err)), nil
 	}
 
-	// Get repo path
-	cwd, err := os.Getwd()
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get working directory: %v", err)), nil
-	}
-	repoPath, err := getRepoPath(ctx, cwd)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to get repo path: %v", err)), nil
-	}
-
-	cfg, err := s.loadConfig(cwd)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("failed to load config: %v", err)), nil
+	repoPath, cfg, errResult := s.resolveRepo(ctx, request)
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	// Validate required fields and build template values

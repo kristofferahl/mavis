@@ -16,6 +16,11 @@ func initRepo(t *testing.T) string {
 	if out, err := exec.Command("git", "-C", dir, "init", "-q").CombinedOutput(); err != nil {
 		t.Fatalf("git init failed: %v\n%s", err, out)
 	}
+	for _, kv := range [][2]string{{"user.name", "mavis test"}, {"user.email", "test@example.com"}, {"commit.gpgsign", "false"}} {
+		if out, err := exec.Command("git", "-C", dir, "config", kv[0], kv[1]).CombinedOutput(); err != nil {
+			t.Fatalf("git config failed: %v\n%s", err, out)
+		}
+	}
 	// git reports the resolved path (e.g. /private/var on macOS).
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err != nil {
@@ -76,6 +81,7 @@ func TestGetRepoPath_RejectsDirectoriesOutsideARepo(t *testing.T) {
 		want string
 	}{
 		{"empty directory is rejected", "", "directory is required"},
+		{"relative directory is rejected", "some/repo", "must be an absolute path"},
 		{"directory that is not in a repo is rejected", notARepo, "is not in a git repository"},
 		{"directory that does not exist is rejected", filepath.Join(notARepo, "missing"), "is not in a git repository"},
 	}

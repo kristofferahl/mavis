@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,6 +13,9 @@ import (
 func getRepoPath(ctx context.Context, dir string) (string, error) {
 	if dir == "" {
 		return "", errors.New("directory is required")
+	}
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("%s must be an absolute path", dir)
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--show-toplevel")
