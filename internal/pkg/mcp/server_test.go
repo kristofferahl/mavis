@@ -268,3 +268,48 @@ func TestTools_ReportConfigLoadErrors(t *testing.T) {
 		})
 	}
 }
+
+// prepare_commit tells the agent which repository to inspect,
+// so it does not run git in its own working directory by mistake.
+func TestPrepareCommit_InstructionsTargetTheResolvedRepository(t *testing.T) {
+	repo := initRepo(t)
+	nested := filepath.Join(repo, "sub")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig(t, cfgPath, "feat")
+	s := NewServer(fileLoader(cfgPath))
+
+	got := mustCall[PrepareCommitResult](t, s.handlePrepareCommit, map[string]any{"path": nested})
+
+	for _, want := range []string{
+		"Repository: " + repo,
+		`git -C "` + repo + `" diff --cached`,
+		`git -C "` + repo + `" branch --show-current`,
+		"pass this same path to preview_commit",
+	} {
+		if !strings.Contains(got.Instructions, want) {
+			t.Errorf("instructions do not contain %q", want)
+		}
+	}
+	if strings.Contains(got.Instructions, "{{repo_path}}") {
+		t.Errorf("instructions still contain the {{repo_path}} placeholder")
+	}
+}
+
+// The mavis prompt asks the agent to pass the repository path.
+func TestMavisPrompt_AsksForTheRepositoryPath(t *testing.T) {
+	s := NewServer(fileLoader(""))
+	res, err := s.handleMavisPrompt(context.Background(), mcp.GetPromptRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, ok := res.Messages[0].Content.(mcp.TextContent)
+	if !ok {
+		t.Fatalf("unexpected content type %T", res.Messages[0].Content)
+	}
+	if !strings.Contains(text.Text, "absolute path as path to prepare_commit and preview_commit") {
+		t.Errorf("prompt %q does not ask for the repository path", text.Text)
+	}
+}

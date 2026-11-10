@@ -49,7 +49,7 @@ func (s *Server) Serve() error {
 func (s *Server) registerTools() {
 	// Tool: prepare_commit
 	prepareCommitTool := mcp.NewTool("prepare_commit",
-		mcp.WithDescription("Get the commit message template, fields, and instructions. Call this first to understand what values are needed for a commit."),
+		mcp.WithDescription("Get the commit message template, fields, and instructions for the repository at path. Call this first to understand what values are needed for a commit."),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("Absolute path to the git repository to commit in (any directory inside it works)"),
@@ -93,7 +93,7 @@ func (s *Server) handleMavisPrompt(ctx context.Context, request mcp.GetPromptReq
 	return mcp.NewGetPromptResult("Create a commit using mavis", []mcp.PromptMessage{
 		mcp.NewPromptMessage(
 			mcp.RoleUser,
-			mcp.NewTextContent("Use the mavis tools to commit staged changes. Call prepare_commit first, then preview_commit with appropriate field values, show me the result, and wait for my approval before calling approve_commit."),
+			mcp.NewTextContent("Use the mavis tools to commit staged changes in the repository I am working in. Pass that repository's absolute path as path to prepare_commit and preview_commit. Call prepare_commit first, then preview_commit with appropriate field values, show me the result, and wait for my approval before calling approve_commit."),
 		),
 	}), nil
 }
@@ -129,9 +129,12 @@ type PrepareCommitResult struct {
 
 const mcpInstructions = `Generate field values for a git commit message based on STAGED changes only.
 
+Repository: {{repo_path}}
+Run every git command against this repository, and pass this same path to preview_commit.
+
 STEP 1 - Gather context (run these commands first):
-- git diff --cached        → View the staged changes (this is what you're committing)
-- git branch --show-current → Get the current branch name for context
+- git -C "{{repo_path}}" diff --cached         → View the staged changes (this is what you're committing)
+- git -C "{{repo_path}}" branch --show-current → Get the current branch name for context
 
 STEP 2 - Analyze the changes:
 - Focus on STAGED changes only; ignore unstaged and untracked files
@@ -155,7 +158,7 @@ func (s *Server) handlePrepareCommit(ctx context.Context, request mcp.CallToolRe
 		return errResult, nil
 	}
 
-	instructions := mcpInstructions
+	instructions := strings.ReplaceAll(mcpInstructions, "{{repo_path}}", repoPath)
 	if cfg.AI.CustomPrompt != "" {
 		instructions = instructions + "\n\nAdditional guidance:\n" + cfg.AI.CustomPrompt
 	}
